@@ -18,9 +18,10 @@ toutiao-ops publish article --title "文章标题" --content "# Markdown 正文"
 |------|------|--------|------|
 | `--title` | 是 | - | 文章标题（**2~30 个字**，超出自动截断） |
 | `--content` | 否* | - | 文章正文（支持 Markdown 语法） |
-| `--content-file` | 否* | - | 从文件读取正文（`.md` 文件自动识别为 Markdown） |
-| `--format` | 否 | `markdown` | 正文格式：`markdown`（富文本排版）/ `text`（纯文本逐字输入） |
-| `--cover` | 是 | - | 封面图片本地路径 |
+| `--content-file` | 否* | - | 从文件读取正文（`.md` / `.html` / `.json` 自动识别；`.json` 按 `blocks` 逐块渲染） |
+| `--format` | 否 | `markdown` | 正文格式：`markdown` / `html` / `json` / `text` |
+| `--cover` | 否 | - | 封面图片本地路径；缺省时取 JSON 封面或正文第一张图片 |
+| `--images` | 否 | - | 额外图片路径，逗号分隔；会追加到正文末尾 |
 | `--cover-mode` | 否 | `single` | 封面模式：`single`（单图）/ `triple`（三图）/ `none`（无封面） |
 | `--first-publish` | 否 | false | 勾选「头条首发」 |
 | `--collection` | 否 | - | 添加至合集名称 |
@@ -89,6 +90,12 @@ toutiao-ops publish article \
   --content "这是一段纯文本内容\n\n没有排版格式" \
   --format text
 
+# 结构化 JSON 输入（推荐用于复杂排版）
+toutiao-ops publish article \
+  --content-file "/path/to/article_toutiao.json" \
+  --cover-mode single \
+  --first-publish
+
 # 存草稿
 toutiao-ops publish article --title "草稿标题" --content-file draft.md --draft
 ```
@@ -99,9 +106,10 @@ toutiao-ops publish article --title "草稿标题" --content-file draft.md --dra
 2. 导航到发布页，关闭弹窗遮挡
 3. 填写标题（逐字输入，带随机延迟）
 4. 输入正文：
-   - **Markdown 模式**：将 Markdown 渲染为 HTML → 通过 ClipboardEvent 粘贴富文本 → 编辑器自动解析格式
+   - **JSON 模式**：按 `blocks` 字段逐块渲染（段落、标题、图片、引用、列表、代码、表格、分割线），文本块直接 DOM 插入，图片块 toolbar 上传
+   - **Markdown / HTML 模式**：按 `<img>` / `![](path)` 拆分文本段和图片段，交替粘贴文本并上传图片，保持原文排版
    - **纯文本模式**：按 `\n` 分段，逐段键盘输入
-5. 设置封面模式并上传封面图（如提供）
+5. 设置封面模式并上传封面图（缺省时取 JSON 封面或正文第一张图片）
 6. 勾选头条首发（如指定）
 7. 添加合集（如指定）
 8. 设置作品声明（如指定）

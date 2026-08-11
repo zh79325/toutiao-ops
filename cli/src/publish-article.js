@@ -1,4 +1,5 @@
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { dirname, resolve } from 'path';
 import { marked } from 'marked';
 import { launchBrowser, closeBrowser, sleep, waitForStable, dismissOverlays } from './browser.js';
 import { ensureLoggedIn } from './auth-guard.js';
@@ -10,11 +11,12 @@ const TITLE_MIN_LEN = 2;
 /**
  * 发布图文文章。
  * 参数:
- *   --title          文章标题（必填）
+ *   --title          文章标题（必填，JSON 输入时可省略）
  *   --content        正文文本
- *   --content-file   从文件读取正文
- *   --cover          封面图片路径（必填，单图模式）
+ *   --content-file   从文件读取正文（.md / .html / .json；.json 会按 blocks 字段逐块渲染）
+ *   --cover          封面图片路径（默认取 JSON 封面或第一张正文图片）
  *   --cover-mode     封面模式: single / triple / none（默认 single）
+ *   --images         额外图片路径，逗号分隔（优先级高于正文内图片）
  *   --first-publish  勾选"头条首发"
  *   --collection     添加至合集名称
  *   --no-weitoutiao  取消"同时发布微头条"
@@ -30,8 +32,55 @@ export async function publishArticle(opts) {
     await sleep(1500, 2500);
     await dismissOverlays(page);
 
+    // ── 正文：先读取并解析，供标题/封面缺省使用 ──
+    let content = opts.content || '';
+    let contentBaseDir = process.cwd();
+    if (opts.contentFile) {
+      content = readFileSync(opts.contentFile, 'utf-8');
+      contentBaseDir = dirname(opts.contentFile);
+    }
+    content = content.replace(/\\n/g, '\n');
+
+    // 识别输入格式
+    const isJson = opts.format === 'json' || opts.contentFile?.match(/\.json$/i);
+    const isHtml = opts.format === 'html'
+      || opts.contentFile?.match(/\.html$/i)
+      || /^\s*</.test(content);
+
+    // 解析结构化 JSON
+    let jsonArticle = null;
+    let jsonBlocks = [];
+    if (isJson) {
+      try {
+        jsonArticle = JSON.parse(content);
+      } catch (e) {
+        throw new Error(`JSON 解析失败：${e.message}`);
+      }
+      jsonBlocks = Array.isArray(jsonArticle.blocks) ? jsonArticle.blocks : [];
+    }
+
+    // 收集正文内联图片 + --images 额外图片
+    const inlineImages = [];
+    const segments = parseContentSegments(content, contentBaseDir, isHtml, inlineImages);
+    const extraImages = opts.images ? opts.images.split(',').map(p => p.trim()).filter(Boolean) : [];
+
+    // 封面缺省使用：--cover > JSON 封面 > 第一张 --images > 第一张正文内联图片
+    let coverPath = opts.cover;
+    if (!coverPath && jsonArticle?.cover_image) {
+      coverPath = resolveImagePath(jsonArticle.cover_image, contentBaseDir);
+    }
+    if (!coverPath) {
+      coverPath = extraImages[0] || inlineImages[0];
+    }
+
     // ── 标题（2~30 字） ──
     let title = opts.title;
+    if (!title && jsonArticle?.title) {
+      title = jsonArticle.title;
+    }
+    if (!title) {
+      throw new Error('标题不能为空');
+    }
     if (title.length < TITLE_MIN_LEN) {
       throw new Error(`标题过短：至少 ${TITLE_MIN_LEN} 个字，当前 ${title.length} 个字`);
     }
@@ -46,12 +95,6 @@ export async function publishArticle(opts) {
     await page.keyboard.type(title, { delay: 50 + Math.random() * 80 });
     await sleep(500, 1000);
 
-    // ── 正文 ──
-    let content = opts.content || '';
-    if (opts.contentFile) {
-      content = readFileSync(opts.contentFile, 'utf-8');
-    }
-    content = content.replace(/\\n/g, '\n');
     if (content) {
       const editorSelector = '[contenteditable="true"]';
       await page.waitForSelector(editorSelector, { timeout: 15000 });
@@ -59,8 +102,41 @@ export async function publishArticle(opts) {
       await page.click(editorSelector, { force: true });
       await sleep(200, 400);
 
-      if (opts.format === 'markdown' || opts.contentFile?.match(/\.md$/i)) {
+      if (jsonBlocks.length > 0) {
+        // 结构化 JSON：严格按照 blocks 顺序一个元素一个元素插入，
+        // 每次操作前先把光标强制移到编辑器末尾，避免顺序错乱
+        for (let i = 0; i < jsonBlocks.length; i++) {
+          const block = jsonBlocks[i];
+          process.stderr.write(`[publish-article] block ${i + 1}/${jsonBlocks.length}: ${block.type}\n`);
+          await insertJsonBlock(page, block, editorSelector, contentBaseDir);
+        }
+        // --images 追加
+        const jsonInlineImages = collectJsonInlineImages(jsonBlocks, contentBaseDir);
+        for (const imgPath of extraImages) {
+          if (!jsonInlineImages.includes(resolveImagePath(imgPath, contentBaseDir))) {
+            await focusEditorEnd(page, editorSelector);
+            await uploadInlineImage(page, resolveImagePath(imgPath, contentBaseDir));
+          }
+        }
+      } else if (segments.length > 0) {
+        // 分段粘贴：文本段 + 图片段交替
+        for (const seg of segments) {
+          if (seg.type === 'image') {
+            await uploadInlineImage(page, seg.path);
+          } else if (seg.html) {
+            await pasteHtml(page, seg.html, editorSelector);
+          }
+        }
+        // --images 中未在正文出现的图片追加到末尾
+        for (const imgPath of extraImages) {
+          if (!inlineImages.includes(resolveImagePath(imgPath, contentBaseDir))) {
+            await uploadInlineImage(page, resolveImagePath(imgPath, contentBaseDir));
+          }
+        }
+      } else if (opts.format === 'markdown' || opts.contentFile?.match(/\.md$/i)) {
         await pasteMarkdownAsRichText(page, content, editorSelector);
+      } else if (isHtml) {
+        await pasteHtml(page, content, editorSelector);
       } else {
         await typePlainText(page, content);
       }
@@ -68,7 +144,7 @@ export async function publishArticle(opts) {
     await sleep(500, 1000);
 
     // ── 展示封面 ──
-    await setCoverMode(page, opts.coverMode || 'single', opts.cover);
+    await setCoverMode(page, opts.coverMode || 'single', coverPath);
     await sleep(500, 1000);
 
     // ── 声明首发 ──
@@ -99,11 +175,18 @@ export async function publishArticle(opts) {
     await dismissOverlays(page);
     if (opts.draft) {
       // 页面底部没有独立草稿按钮，草稿已自动保存
+      const editorHtml = await page.evaluate(() => {
+        const editor = document.querySelector('[contenteditable="true"]');
+        return editor ? editor.innerHTML : '';
+      });
+      const debugPath = '/Users/eleme/Desktop/AIWorker/toutiao-ops/temp/debug-heading-draft.html';
+      writeFileSync(debugPath, `<!doctype html><html><body>${editorHtml}</body></html>`);
       return {
         success: true,
         action: 'draft_saved',
         title,
         url: page.url(),
+        debugHtml: debugPath,
       };
     }
 
@@ -260,24 +343,7 @@ async function setDeclarations(page, declarationStr) {
 
 async function pasteMarkdownAsRichText(page, markdownContent, editorSelector) {
   const html = marked.parse(markdownContent, { breaks: true, gfm: true });
-  await page.evaluate(
-    ({ html, selector }) => {
-      const editor = document.querySelector(selector);
-      if (!editor) return;
-      editor.focus();
-      const dt = new DataTransfer();
-      dt.setData('text/html', html);
-      dt.setData('text/plain', editor.textContent);
-      const evt = new ClipboardEvent('paste', {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true,
-      });
-      editor.dispatchEvent(evt);
-    },
-    { html, selector: editorSelector },
-  );
-  await sleep(500, 1000);
+  await pasteHtml(page, html, editorSelector);
 }
 
 async function typePlainText(page, content) {
@@ -291,5 +357,222 @@ async function typePlainText(page, content) {
       await page.keyboard.press('Enter');
       await sleep(100, 300);
     }
+  }
+}
+
+/**
+ * 将 Markdown 或 HTML 内容按图片拆分为段落。
+ * 返回 [{ type: 'text'|'image', html|path }] 数组。
+ */
+function parseContentSegments(content, baseDir, isHtml, outInlineImages) {
+  // 统一先转成 HTML，再按 <img> 拆分
+  let html = isHtml ? content : marked.parse(content, { breaks: true, gfm: true });
+
+  const segments = [];
+  const regex = /<img\s+[^>]*src="([^"]+)"[^>]*>/gi;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(html)) !== null) {
+    const text = html.slice(lastIndex, match.index).trim();
+    if (text) {
+      segments.push({ type: 'text', html: text });
+    }
+    const path = resolveImagePath(match[1], baseDir);
+    outInlineImages.push(path);
+    segments.push({ type: 'image', path });
+    lastIndex = regex.lastIndex;
+  }
+
+  const tail = html.slice(lastIndex).trim();
+  if (tail) {
+    segments.push({ type: 'text', html: tail });
+  }
+
+  return segments;
+}
+
+function resolveImagePath(src, baseDir) {
+  if (!src || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+    return src;
+  }
+  if (src.startsWith('/')) {
+    return src;
+  }
+  return resolve(baseDir, src);
+}
+
+function jsonBlockToHtml(block, baseDir) {
+  switch (block.type) {
+    case 'heading': {
+      // 使用真实标题标签，让编辑器识别为标题样式；正文内标题从 h2 起
+      const level = Math.min(Math.max(block.level || 2, 1), 6);
+      const tag = `h${level}`;
+      return `<${tag}>${block.text || ''}</${tag}>`;
+    }
+    case 'paragraph':
+      return `<p>${block.text || ''}</p>`;
+    case 'quote':
+      return `<blockquote>${block.text || ''}</blockquote>`;
+    case 'list': {
+      const tag = block.ordered ? 'ol' : 'ul';
+      const items = (block.items || []).map(i => `<li>${i}</li>`).join('');
+      return `<${tag}>${items}</${tag}>`;
+    }
+    case 'code':
+      return `<pre><code>${escapeHtml(block.text || '')}</code></pre>`;
+    case 'table': {
+      const rows = block.rows || [];
+      if (!rows.length) return '';
+      const head = rows[0].map(c => `<th>${escapeHtml(c)}</th>`).join('');
+      const body = rows.slice(1).map(r => `<tr>${r.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+      return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+    case 'divider':
+      return '<hr>';
+    case 'image':
+      // 图片块不通过 pasteHtml 插入，这里只返回 truthy 字符串用于分支判断
+      return '<!-- image -->';
+    default:
+      return block.text ? `<p>${block.text}</p>` : '';
+  }
+}
+
+async function focusEditorEnd(page, editorSelector) {
+  await page.evaluate(
+    (selector) => {
+      const editor = document.querySelector(selector);
+      if (!editor) return;
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    },
+    editorSelector,
+  );
+  await sleep(200, 400);
+}
+
+async function insertJsonBlock(page, block, editorSelector, baseDir) {
+  if (isImageBlock(block)) {
+    await focusEditorEnd(page, editorSelector);
+    await uploadInlineImage(page, resolveImagePath(block.src, baseDir));
+    await sleep(2000, 3000);
+    await focusEditorEnd(page, editorSelector);
+    return;
+  }
+
+  const html = jsonBlockToHtml(block, baseDir);
+  if (!html || html === '<!-- image -->') return;
+
+  await pasteHtml(page, html, editorSelector);
+  await sleep(1000, 1800);
+}
+
+function stripHtml(html) {
+  return String(html)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .trim();
+}
+
+function collectJsonInlineImages(blocks, baseDir) {
+  const paths = [];
+  for (const block of blocks) {
+    if (block.type === 'image' && block.src) {
+      paths.push(resolveImagePath(block.src, baseDir));
+    }
+  }
+  return paths;
+}
+
+function isImageBlock(block) {
+  return block && block.type === 'image';
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function pasteHtml(page, html, selector) {
+  await page.evaluate(
+    ({ html, selector }) => {
+      const editor = document.querySelector(selector);
+      if (!editor) return;
+      editor.focus();
+
+      // 直接 DOM 插入，避免 ClipboardEvent 触发编辑器自动全选导致后续操作覆盖
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      const fragment = document.createRange().createContextualFragment(html);
+      range.insertNode(fragment);
+      selection.collapseToEnd();
+    },
+    { html, selector },
+  );
+  await sleep(800, 1500);
+}
+
+async function uploadInlineImage(page, imagePath) {
+  if (!imagePath) return;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('data:')) {
+    return;
+  }
+  if (!existsSync(imagePath)) {
+    process.stderr.write(`[warn] 图片不存在：${imagePath}\n`);
+    return;
+  }
+
+  try {
+    process.stderr.write(`[upload] 点击工具栏图片按钮\n`);
+    const imgBtn = page.locator('[class*="toolbar"] [class*="image"]').first();
+    await imgBtn.click({ timeout: 5000 });
+    await sleep(1000, 1500);
+
+    // 优先尝试页面已有的文件输入框；否则点击"本地上传"触发 filechooser
+    const fileInput = page.locator('input[type="file"][accept*="image"]').first();
+    const isVisible = await fileInput.isVisible().catch(() => false);
+    if (isVisible) {
+      process.stderr.write(`[upload] 通过文件输入框上传\n`);
+      await fileInput.setInputFiles(imagePath);
+    } else {
+      process.stderr.write(`[upload] 点击本地上传触发 filechooser\n`);
+      const [fileChooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 10000 }),
+        page.locator('text=本地上传').first().click({ timeout: 5000 }),
+      ]);
+      if (fileChooser) {
+        await fileChooser.setFiles(imagePath);
+      }
+    }
+    await sleep(2000, 3000);
+
+    process.stderr.write(`[upload] 点击确定插入图片\n`);
+    const confirmBtn = page.locator('.byte-modal-wrapper button:has-text("确定"), .byte-modal-wrapper button:has-text("确认"), .upload-image-panel button:has-text("确定"), .upload-image-panel button:has-text("确认")').first();
+    await confirmBtn.click({ timeout: 10000 });
+    await sleep(500, 1000);
+    process.stderr.write(`[upload] 完成\n`);
+  } catch (e) {
+    process.stderr.write(`[upload] 失败：${e.message}\n`);
+    // 上传失败不阻塞，关闭可能残留的弹窗
+    await page.keyboard.press('Escape').catch(() => {});
+    await sleep(500, 800);
   }
 }

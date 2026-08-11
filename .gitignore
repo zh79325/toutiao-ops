@@ -9,3 +9,5 @@ credentials.json
 *.cache
 screenshots/
 .idea/
+temp/
+
