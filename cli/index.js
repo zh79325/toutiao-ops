@@ -62,7 +62,7 @@ publish
   .option('--content-file <path>', '从文件读取正文（支持 .md / .html / .json；.json 按 blocks 逐块渲染）')
   .option('--format <format>', '正文格式: text / markdown / html / json', 'markdown')
   .option('--cover <path>', '封面图片路径（默认取 JSON 封面或正文第一张图片）')
-  .option('--cover-mode <mode>', '封面模式: single / triple / none', 'single')
+  .option('--cover-mode <mode>', '封面模式: single / triple / none（默认根据 JSON 封面数量自动推断）')
   .option('--images <paths>', '额外图片路径，逗号分隔，会追加到正文末尾')
   .option('--first-publish', '勾选"头条首发"')
   .option('--collection <name>', '添加至合集名称')
