@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { marked } from 'marked';
-import { launchBrowser, closeBrowser, sleep, waitForStable, dismissOverlays } from './browser.js';
+import { launchBrowser, closeBrowser, sleep, waitForStable, dismissOverlays, getScreenshotDir } from './browser.js';
 import { ensureLoggedIn } from './auth-guard.js';
 
 const PUBLISH_URL = 'https://mp.toutiao.com/profile_v4/graphic/publish';
@@ -207,18 +207,47 @@ export async function publishArticle(opts) {
     const publishBtn = page.locator('button:has-text("预览并发布")').first();
     await publishBtn.scrollIntoViewIfNeeded().catch(() => {});
     await sleep(300, 500);
-    await publishBtn.click({ force: true, timeout: 10000 });
+    const preClickUrl = page.url();
+    await publishBtn.click({ timeout: 10000 });
+
+    // 校验是否真正跳转到预览页
+    try {
+      await page.waitForFunction((url) => location.href !== url, preClickUrl, { timeout: 15000 });
+      process.stderr.write('[publish] 已跳转至预览页\n');
+    } catch (e) {
+      await takeDebugScreenshot(page, opts, 'publish-preview-failed');
+      throw new Error('点击"预览并发布"后页面未跳转，发布未触发');
+    }
     await sleep(3000, 5000);
     await waitForStable(page);
 
     // 预览页面需要再次点击"确认发布"
     const confirmPublish = page.locator('button:has-text("确认发布"), button:has-text("发布")').first();
-    await confirmPublish.click({ timeout: 10000 }).catch(() => {});
+    await confirmPublish.waitFor({ timeout: 10000 });
+    await confirmPublish.click({ timeout: 10000 });
+    process.stderr.write('[publish] 已点击确认发布\n');
     await sleep(2000, 4000);
 
     // 可能还有二次确认弹窗
     const confirmBtn = page.locator('button:has-text("确定"), button:has-text("确认")').first();
-    await confirmBtn.click({ timeout: 5000 }).catch(() => {});
+    const hasConfirmBtn = await confirmBtn.isVisible().catch(() => false);
+    if (hasConfirmBtn) {
+      await confirmBtn.click({ timeout: 5000 });
+      process.stderr.write('[publish] 已点击二次确认\n');
+    }
+
+    // 校验是否真正离开发布/预览流程
+    try {
+      await page.waitForFunction(
+        () => !location.href.includes('/graphic/publish') && !location.href.includes('/graphic/preview'),
+        {},
+        { timeout: 20000 },
+      );
+      process.stderr.write('[publish] 发布流程已完成\n');
+    } catch (e) {
+      await takeDebugScreenshot(page, opts, 'publish-confirm-failed');
+      throw new Error('点击"确认发布"后页面未离开发布流程，可能未发布成功');
+    }
 
     await sleep(2000, 4000);
     await waitForStable(page);
@@ -559,6 +588,18 @@ function collectJsonInlineImages(blocks, baseDir) {
 
 function isImageBlock(block) {
   return block && block.type === 'image';
+}
+
+async function takeDebugScreenshot(page, opts, name) {
+  try {
+    const dir = getScreenshotDir(opts?.account);
+    mkdirSync(dir, { recursive: true });
+    const path = `${dir}/${name}_${Date.now()}.png`;
+    await page.screenshot({ path, fullPage: true });
+    process.stderr.write(`[debug] 截图已保存：${path}\n`);
+  } catch (e) {
+    process.stderr.write(`[debug] 截图失败：${e.message}\n`);
+  }
 }
 
 function escapeHtml(text) {
