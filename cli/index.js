@@ -95,7 +95,8 @@ publish
 publish
   .command('weitoutiao')
   .description('发布微头条')
-  .requiredOption('--content <content>', '微头条内容')
+  .option('--content <content>', '微头条内容（与 --content-file 二选一）')
+  .option('--content-file <path>', '从 JSON 文件读取内容（支持 newspic.json 格式：title/paragraphs/images/ad_blocks）')
   .option('--images <paths>', '图片路径，逗号分隔')
   .option('--topic <topic>', '话题名称（不含 #）')
   .option('--first-publish', '勾选"头条首发"')
@@ -103,6 +104,10 @@ publish
   .option('--draft', '存草稿而非发布')
   .option('--headless', '无头模式运行')
   .action(async (opts) => {
+    if (!opts.content && !opts.contentFile) {
+      console.error(JSON.stringify({ error: '请提供 --content 或 --content-file' }, null, 2));
+      process.exit(1);
+    }
     await run(publishWeitoutiao, opts);
   });
 

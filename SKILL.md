@@ -72,7 +72,8 @@ toutiao-ops auth list
 | `toutiao-ops auth list` | 列出所有已保存的账号 |
 | `toutiao-ops publish article --title "..." --content "..."` | 发布文章（默认 Markdown 富文本排版，支持 --format / --content-file / --cover-mode 等） |
 | `toutiao-ops publish video --title "..." --file "path"` | 发布视频（支持 --topic / --cover / --gen-article / --visibility 等） |
-| `toutiao-ops publish weitoutiao --content "..."` | 发布微头条（支持 --images / --topic / --first-publish / --declaration 等） |
+| `toutiao-ops publish weitoutiao --content "..."` | 发布微头条（支持 `--images` / `--topic` / `--first-publish` / `--declaration` 等） |
+| `toutiao-ops publish weitoutiao --content-file /path/to/newspic.json` | 从 `newspic.json` 发布微头条（默认有头模式，日志输出到控制台） |
 | `toutiao-ops content list` | 查看作品列表（支持 --type / --status） |
 | `toutiao-ops comment list` | 查看评论列表（支持 --with-replies 获取子评论） |
 | `toutiao-ops comment reply --comment-id "..." --content "..."` | 回复评论（支持 ID / 内容片段 / 序号定位） |
