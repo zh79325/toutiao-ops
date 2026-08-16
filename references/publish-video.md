@@ -55,8 +55,8 @@ toutiao-ops publish video --title "草稿" --file "/path/to/video.mp4" --draft
 3. 上传视频文件（通过隐藏 input 直接设置文件）
 4. 等待上传和转码完成（最长 10 分钟）
 5. 填写标题、话题、描述
-6. 处理封面：上传自定义封面或从推荐封面中选择（含多步确认对话框）
-7. 展开高级设置（如果折叠状态）
+6. 处理封面：提供 `--cover` 则本地上传自定义封面；未提供时使用「封面截取」功能，按提示完成多步确认
+7. 展开高级设置（当指定 `--collection` / `--declaration` / `--visibility` 时自动展开）
 8. 勾选生成图文（如指定）
 9. 设置合集、作品声明、可见性（如指定）
 10. 点击「发布」/「存草稿」按钮
@@ -77,5 +77,6 @@ toutiao-ops publish video --title "草稿" --file "/path/to/video.mp4" --draft
 - 支持格式：MP4、MOV 等常见视频格式
 - 大文件上传时间较长，请确保网络稳定
 - 转码超时（10 分钟）会报错，可重试
-- 不提供封面时自动从「建议的封面」中选择第一个
-- 高级设置区域可能为折叠状态，程序会自动展开
+- 不提供 `--cover` 时使用「封面截取」功能，默认选取视频帧并进入多步确认对话框
+- 高级设置区域可能为折叠状态，当指定 `--collection` / `--declaration` / `--visibility` 时程序会自动展开
+- 发布前后会自动截图保存到账号目录的 `screenshots/` 文件夹（`video-before-publish-*` 和 `video-after-publish-*`），便于排查问题

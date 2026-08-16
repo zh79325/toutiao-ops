@@ -12,8 +12,8 @@
 | 模块 | 功能 |
 |------|------|
 | **账号管理** | 多账号登录、QR 码扫码、会话持久化、账号切换 |
-| **文章发布** | 标题/正文、封面（单图/三图/无）、首发、合集、作品声明 |
-| **视频发布** | 视频上传、自定义/自动封面、话题、生成图文、可见性、合集 |
+| **文章发布** | Markdown / HTML / 纯文本 / JSON blocks、封面（单图/三图/无）、首发、合集、作品声明 |
+| **视频发布** | 视频上传、自定义/自动封面、话题、生成图文、可见性、合集、作品声明 |
 | **微头条发布** | 文本 + 多图、话题、首发、作品声明 |
 | **作品管理** | 作品列表、按类型/状态筛选 |
 | **评论管理** | 评论列表（含子评论）、回复评论、点赞评论 |
@@ -80,7 +80,7 @@ toutiao-ops auth list                   # 列出所有账号
 ### 内容发布
 
 ```bash
-# 文章
+# 文章（Markdown）
 toutiao-ops publish article \
   --title "标题" \
   --content "正文（\n分段）" \
@@ -90,6 +90,17 @@ toutiao-ops publish article \
   --collection "专栏名" \
   --declaration "个人观点"
 
+# 文章（HTML 文件，含内联图片）
+toutiao-ops publish article \
+  --title "HTML 图文" \
+  --content-file "/path/article.html" \
+  --format html
+
+# 文章（JSON blocks 结构化排版）
+toutiao-ops publish article \
+  --content-file "/path/article_blocks.json" \
+  --first-publish
+
 # 视频
 toutiao-ops publish video \
   --file "/path/video.mp4" \
@@ -98,8 +109,10 @@ toutiao-ops publish video \
   --topic "话题名" \
   --description "简介" \
   --gen-article \
+  --collection "视频专栏" \
   --declaration "自行拍摄" \
-  --visibility public
+  --visibility public \
+  --draft
 
 # 微头条
 toutiao-ops publish weitoutiao \

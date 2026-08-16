@@ -19,10 +19,10 @@ toutiao-ops publish article --title "文章标题" --content "# Markdown 正文"
 | `--title` | 是 | - | 文章标题（**2~30 个字**，超出自动截断） |
 | `--content` | 否* | - | 文章正文（支持 Markdown 语法） |
 | `--content-file` | 否* | - | 从文件读取正文（`.md` / `.html` / `.json` 自动识别；`.json` 按 `blocks` 逐块渲染） |
-| `--format` | 否 | `markdown` | 正文格式：`markdown` / `html` / `json` / `text` |
+| `--format` | 否 | `markdown` | 正文格式：`markdown` / `html` / `json` / `text`。`.html` / `.md` / `.json` 文件通过 `--content-file` 传入时会自动识别 |
 | `--cover` | 否 | - | 封面图片本地路径；缺省时取 JSON 封面或正文第一张图片 |
-| `--images` | 否 | - | 额外图片路径，逗号分隔；会追加到正文末尾 |
-| `--cover-mode` | 否 | `single` | 封面模式：`single`（单图）/ `triple`（三图）/ `none`（无封面） |
+| `--images` | 否 | - | 额外图片路径，逗号分隔；会追加到正文末尾，且自动去重。优先级高于正文内联图片 |
+| `--cover-mode` | 否 | 自动推断 | 封面模式：`single`（单图）/ `triple`（三图）/ `none`（无封面）。默认根据封面图片数量自动推断：1 张为 `single`，3 张及以上为 `triple`，0 张为 `none` |
 | `--first-publish` | 否 | false | 勾选「头条首发」 |
 | `--collection` | 否 | - | 添加至合集名称 |
 | `--no-weitoutiao` | 否 | false | 取消「同时发布微头条」（默认开启） |
@@ -66,6 +66,36 @@ Agent 在生成文章正文时应遵循以下规范，确保排版效果专业�
 - 段落之间空一行保证间距
 - 文末可使用 `*斜体*` 作为结语点缀
 
+## HTML 内容支持
+
+`--format html` 或 `.html` 文件会直接将 HTML 粘贴到编辑器。支持在 HTML 中嵌入 `<img src="...">` 标签作为正文内联图片，程序会按文本段、图片段交替插入，保持原有排版。
+
+图片路径规则：
+- 绝对路径直接使用
+- 相对路径基于 `--content-file` 所在目录解析
+- 网络 URL / `data:` URL 保持原样，不会上传
+
+## JSON 结构化 blocks
+
+`.json` 文件按 `blocks` 数组逐块渲染，严格保证顺序。支持以下 block 类型：
+
+| 类型 | 字段 | 说明 |
+|------|------|------|
+| `heading` | `level`（1~6，默认 2）、`text` | 标题 |
+| `paragraph` | `text` | 段落 |
+| `image` | `src` | 图片路径（相对/绝对均可） |
+| `quote` | `text` | 引用块 |
+| `list` | `ordered`（布尔）、`items`（字符串数组） | 无序/有序列表 |
+| `code` | `text` | 代码块 |
+| `table` | `rows`（二维字符串数组，第一行为表头） | 表格 |
+| `divider` | - | 分割线 |
+
+封面可前置声明：
+- `cover_images`：数组或逗号分隔字符串，优先使用
+- `cover_image`：逗号分隔字符串，作为兼容字段
+
+文本块通过 `Range.insertNode()` 直接插入并复位光标，避免编辑器自动全选导致后续内容被覆盖；图片块通过工具栏上传，进入头条 CDN。
+
 ## 示例
 
 ```bash
@@ -98,6 +128,36 @@ toutiao-ops publish article \
 
 # 存草稿
 toutiao-ops publish article --title "草稿标题" --content-file draft.md --draft
+
+# 从 HTML 文件发布（含内联图片）
+toutiao-ops publish article \
+  --title "HTML 图文混排示例" \
+  --content-file "/path/to/article.html" \
+  --format html
+
+# 从 JSON blocks 文件发布（结构化排版）
+toutiao-ops publish article \
+  --content-file "/path/to/article_blocks.json" \
+  --first-publish
+```
+
+`article_blocks.json` 示例：
+
+```json
+{
+  "title": "JSON 结构化文章示例",
+  "cover_images": ["cover.jpg"],
+  "blocks": [
+    { "type": "heading", "level": 2, "text": "引言" },
+    { "type": "paragraph", "text": "这是文章开头段落。" },
+    { "type": "image", "src": "images/chart.png" },
+    { "type": "heading", "level": 2, "text": "核心观点" },
+    { "type": "list", "ordered": true, "items": ["第一点", "第二点", "第三点"] },
+    { "type": "quote", "text": "引用内容" },
+    { "type": "code", "text": "console.log('hello');" },
+    { "type": "divider" }
+  ]
+}
 ```
 
 ## 自动化流程
@@ -107,16 +167,18 @@ toutiao-ops publish article --title "草稿标题" --content-file draft.md --dra
 3. 填写标题（逐字输入，带随机延迟）
 4. 输入正文：
    - **JSON 模式**：按 `blocks` 字段逐块渲染（段落、标题、图片、引用、列表、代码、表格、分割线），文本块直接 DOM 插入，图片块 toolbar 上传
-   - **Markdown / HTML 模式**：按 `<img>` / `![](path)` 拆分文本段和图片段，交替粘贴文本并上传图片，保持原文排版
+   - **Markdown 模式**：解析为 HTML 后按 `<img>` / `![](path)` 拆分文本段和图片段，交替粘贴文本并上传图片，保持原文排版
+   - **HTML 模式**：直接按 `<img>` 拆分文本段和图片段，交替插入
    - **纯文本模式**：按 `\n` 分段，逐段键盘输入
-5. 设置封面模式并上传封面图（缺省时取 JSON 封面或正文第一张图片）
-6. 勾选头条首发（如指定）
-7. 添加合集（如指定）
-8. 设置作品声明（如指定）
-9. 取消同步微头条（如指定 `--no-weitoutiao`）
-10. 点击「预览并发布」/「存草稿」按钮
-11. 确认发布弹窗
-12. 等待页面响应并返回结果
+5. `--images` 中未在正文出现的图片追加到末尾
+6. 设置封面模式并上传封面图（缺省时取 JSON 封面或正文第一张图片）
+7. 勾选头条首发（如指定）
+8. 添加合集（如指定）
+9. 设置作品声明（如指定）
+10. 取消同步微头条（如指定 `--no-weitoutiao`）
+11. 点击「预览并发布」/「存草稿」按钮
+12. 确认发布弹窗
+13. 等待页面响应并返回结果
 
 ## 输出示例
 
@@ -137,3 +199,4 @@ toutiao-ops publish article --title "草稿标题" --content-file draft.md --dra
 - `--content` 参数中的 `\n` 会被转换为真实换行符
 - 封面图建议使用 16:9 比例的 JPEG/PNG，尺寸不小于 400×200
 - 作品声明可多选，用逗号分隔
+- `--draft` 存草稿时，程序会导出编辑器当前 HTML 到 `temp/debug-heading-draft.html` 供调试核对

@@ -44,7 +44,7 @@ toutiao-ops auth list
 - 如果未登录，先执行 `toutiao-ops auth login`，将输出的二维码截图展示给用户扫码
 - 发布类操作使用浏览器自动化（模拟真人），数据类操作使用浏览器内 API
 - **文章标题必须控制在 2~30 个字以内**，超出会被自动截断。生成标题时务必精炼，确保不超过 30 字
-- **发布文章时，正文内容应使用 Markdown 格式编写**（默认 `--format markdown`），CLI 会自动将 Markdown 渲染为富文本并粘贴到编辑器，实现标题、加粗、列表、表格、引用等专业排版
+- **发布文章时，正文内容应使用 Markdown 格式编写**（默认 `--format markdown`），CLI 会自动将 Markdown 渲染为富文本并粘贴到编辑器，实现标题、加粗、列表、表格、引用等专业排版；复杂排版可使用 JSON blocks，图文混排可使用 `--format html`
 - 所有命令输出 JSON 格式，方便解析
 
 ## 模块索引
@@ -70,7 +70,7 @@ toutiao-ops auth list
 | `toutiao-ops auth login` | 扫码登录（输出二维码截图路径，需展示给用户） |
 | `toutiao-ops auth logout` | 清除指定账号的登录缓存 |
 | `toutiao-ops auth list` | 列出所有已保存的账号 |
-| `toutiao-ops publish article --title "..." --content "..."` | 发布文章（默认 Markdown 富文本排版，支持 --format / --content-file / --cover-mode 等） |
+| `toutiao-ops publish article --title "..." --content "..."` | 发布文章（默认 Markdown 富文本排版，支持 `--format html|json` / `--content-file` / `--cover-mode` 等） |
 | `toutiao-ops publish video --title "..." --file "path"` | 发布视频（支持 --topic / --cover / --gen-article / --visibility 等） |
 | `toutiao-ops publish weitoutiao --content "..."` | 发布微头条（支持 `--images` / `--topic` / `--first-publish` / `--declaration` 等） |
 | `toutiao-ops publish weitoutiao --content-file /path/to/newspic.json` | 从 `newspic.json` 发布微头条（默认有头模式，日志输出到控制台） |

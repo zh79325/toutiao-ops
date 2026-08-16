@@ -47,15 +47,19 @@
 
 ## 文章发布实现要点
 
-JSON 格式文章（`--content-file article.json`）按 `blocks` 字段逐块写入编辑器：
+文章发布支持 Markdown（默认）、HTML、纯文本、JSON blocks 四种正文模式：
 
 | 关键点 | 做法 | 原因 |
 |--------|------|------|
+| Markdown / HTML | 解析后按 `<img>` / `![](path)` 拆分文本段与图片段，交替插入 | 支持图文混排，保持原文排版 |
+| JSON blocks | 按 `blocks` 数组逐块写入，文本块直接 DOM 插入，图片块走工具栏上传 | 严格保证复杂排版顺序 |
 | 文本插入 | `Range.insertNode()` + `selection.collapseToEnd()` | 避免 `ClipboardEvent` 触发编辑器自动全选，导致后续内容被覆盖 |
 | 图片插入 | 点击工具栏图片按钮 → 选择文件 → 点击确定 | 让头条编辑器走正常上传流程，图片进入头条 CDN |
 | 顺序保证 | 每个 block 插入前将光标移到编辑器末尾 | 保证段落、标题、图片严格按 JSON 顺序排列 |
 | 标题渲染 | 使用真实 `<h1>` ~ `<h6>` 标签插入 | 编辑器自动识别为标题样式 |
-| 封面模式 | 优先读取 JSON `cover_images` 数组，回退到 `cover_image` 字符串；按数量自动推断：`1` 单图 / `3` 三图 / `0` 无封面 | 避免封面数量与 JSON 指定不一致 |
+| 封面模式 | 优先读取 JSON `cover_images` 数组，回退到 `cover_image` 字符串；按数量自动推断：`1` 单图 / `≥3` 三图 / `0` 无封面 | 避免封面数量与 JSON 指定不一致 |
+
+JSON blocks 支持类型：`heading` / `paragraph` / `image` / `quote` / `list` / `code` / `table` / `divider`。
 
 已验证：32 个 block（段落/标题/图片）全部按顺序插入，草稿保存成功。
 
@@ -119,8 +123,14 @@ Agent 读取 `SKILL.md` 获取命令列表，读取 `references/*.md` 获取参�
 # 登录（首次需手机扫码）
 npx toutiao-ops auth login
 
-# 发布文章
+# 发布文章（Markdown）
 npx toutiao-ops publish article --title "AI 前沿" --content "内容..."
+
+# 从 JSON blocks 发布文章
+npx toutiao-ops publish article --content-file article_blocks.json --first-publish
+
+# 从 HTML 文件发布文章
+npx toutiao-ops publish article --title "HTML 图文" --content-file article.html --format html
 
 # 发布视频
 npx toutiao-ops publish video --title "探险记" --file video.mp4
