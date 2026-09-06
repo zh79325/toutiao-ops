@@ -64,7 +64,7 @@ npx toutiao-ops --account work publish article --title "工作日报" --content 
 npx toutiao-ops auth list
 ```
 
-账号数据存储在 `~/.toutiao-ops/accounts/<name>/` 下。
+账号数据存储在命令执行目录的 `.toutiao-ops/accounts/<name>/` 下。固定在同一目录执行命令，即可复用或同步账号数据。
 
 ## 命令参考
 
@@ -206,7 +206,7 @@ toutiao-ops inspiration --type hotspot           # 热点推荐
 ## 数据目录
 
 ```
-~/.toutiao-ops/
+<当前工作目录>/.toutiao-ops/
 └── accounts/
     ├── default/
     │   ├── browser-data/       # 浏览器会话数据

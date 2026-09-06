@@ -1,12 +1,11 @@
-import { launchBrowser, closeBrowser, sleep, waitForStable, getAccountDir, getScreenshotDir, getBrowserDataDir } from './browser.js';
-import { homedir } from 'os';
+import { launchBrowser, closeBrowser, sleep, waitForStable, getAccountsDir, getAccountDir, getScreenshotDir, getBrowserDataDir } from './browser.js';
 import { join } from 'path';
 import { mkdirSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 
 const MP_HOME = 'https://mp.toutiao.com/';
 const LOGIN_PATH = '/auth/page/login';
 const DASHBOARD_PATH = '/profile_v4';
-const ACCOUNTS_BASE = join(homedir(), '.toutiao-ops', 'accounts');
+const ACCOUNTS_BASE = getAccountsDir();
 
 /**
  * 导航到头条号首页并等待所有重定向完成。

@@ -163,7 +163,7 @@ npx toutiao-ops --account work publish article --title "..."
 npx toutiao-ops auth list
 ```
 
-每个账号独立存储在 `~/.toutiao-ops/accounts/<name>/`，包含浏览器会话、二维码截图和账号元信息。
+每个账号独立存储在命令执行目录的 `.toutiao-ops/accounts/<name>/` 下，包含浏览器会话、二维码截图和账号元信息，便于随工作目录复制或同步。
 
 ## 命令速查
 

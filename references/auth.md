@@ -2,7 +2,7 @@
 
 ## 概述
 
-头条号登录通过浏览器持久化上下文实现，支持多账号管理。每个账号的会话独立保存在 `~/.toutiao-ops/accounts/<账号名>/` 下，互不影响。
+头条号登录通过浏览器持久化上下文实现，支持多账号管理。每个账号的会话独立保存在命令执行目录的 `.toutiao-ops/accounts/<账号名>/` 下，互不影响，可随工作目录复制或同步。
 
 ## 多账号
 
@@ -20,7 +20,7 @@ toutiao-ops --account personal auth login
 数据目录结构：
 
 ```
-~/.toutiao-ops/accounts/
+<当前工作目录>/.toutiao-ops/accounts/
 ├── default/
 │   ├── browser-data/    # 浏览器会话
 │   ├── screenshots/     # 二维码截图
@@ -75,7 +75,7 @@ toutiao-ops [--account <name>] auth login
   "status": "waiting_for_scan",
   "account": "default",
   "message": "请使用今日头条 APP 扫描二维码登录",
-  "qr_screenshot": "/Users/xxx/.toutiao-ops/accounts/default/screenshots/qrcode-xxx.png",
+  "qr_screenshot": "/path/to/current/.toutiao-ops/accounts/default/screenshots/qrcode-xxx.png",
   "attempt": 1,
   "max_attempts": 6
 }

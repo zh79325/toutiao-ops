@@ -1,12 +1,11 @@
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { homedir } from 'os';
 import { join } from 'path';
 import { mkdirSync } from 'fs';
 
 chromium.use(StealthPlugin());
 
-const BASE_DIR = join(homedir(), '.toutiao-ops');
+const BASE_DIR = join(process.cwd(), '.toutiao-ops');
 const DEFAULT_ACCOUNT = 'default';
 
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
@@ -19,10 +18,17 @@ const LAUNCH_ARGS = [
 ];
 
 /**
+ * 获取当前工作目录下的账号数据目录。
+ */
+export function getAccountsDir() {
+  return join(BASE_DIR, 'accounts');
+}
+
+/**
  * 获取指定账号的数据目录路径。
  */
 export function getAccountDir(account) {
-  return join(BASE_DIR, 'accounts', account || DEFAULT_ACCOUNT);
+  return join(getAccountsDir(), account || DEFAULT_ACCOUNT);
 }
 
 /**
@@ -41,7 +47,7 @@ export function getScreenshotDir(account) {
 
 /**
  * 启动持久化浏览器上下文。
- * 会话数据按账号隔离，保存在 ~/.toutiao-ops/accounts/<name>/browser-data/。
+ * 会话数据按账号隔离，保存在当前工作目录的 .toutiao-ops/accounts/<name>/browser-data/。
  *
  * @param {object} opts
  * @param {string} [opts.account="default"]
