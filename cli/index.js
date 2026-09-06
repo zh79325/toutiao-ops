@@ -17,7 +17,8 @@ program
   .name('toutiao')
   .description('今日头条创作者平台运营自动化工具')
   .version('1.0.0')
-  .option('--account <name>', '指定操作的账号（默认 default）', 'default');
+  .option('--account <name>', '指定操作的账号（默认 default）', 'default')
+  .option('--data-dir <path>', '指定浏览器会话和账号数据根目录（默认当前目录下的 .toutiao-ops）');
 
 // ── auth ──
 const auth = program.command('auth');
@@ -226,7 +227,11 @@ async function run(fn, subOpts) {
   const updateCheck = checkForUpdates();
   try {
     const globalOpts = program.opts();
-    const opts = { ...subOpts, account: globalOpts.account };
+    const opts = {
+      ...subOpts,
+      account: globalOpts.account,
+      dataDir: globalOpts.dataDir,
+    };
     const result = await fn(opts);
     await updateCheck;
     console.log(JSON.stringify(result, null, 2));

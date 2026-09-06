@@ -88,4 +88,5 @@ toutiao-ops auth list
 ## 通用选项
 
 - `--account <name>`：指定账号（默认 default），加在 `toutiao-ops` 后、子命令前
+- `--data-dir <path>`：指定浏览器会话和账号数据根目录；默认使用当前目录下的 `.toutiao-ops`
 - `--headless`：无头模式运行（默认有头模式）

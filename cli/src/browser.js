@@ -1,11 +1,10 @@
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { mkdirSync } from 'fs';
 
 chromium.use(StealthPlugin());
 
-const BASE_DIR = join(process.cwd(), '.toutiao-ops');
 const DEFAULT_ACCOUNT = 'default';
 
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
@@ -18,31 +17,38 @@ const LAUNCH_ARGS = [
 ];
 
 /**
- * 获取当前工作目录下的账号数据目录。
+ * 获取数据根目录。指定路径可为绝对路径或相对于当前工作目录的路径。
  */
-export function getAccountsDir() {
-  return join(BASE_DIR, 'accounts');
+export function getDataDir(dataDir) {
+  return dataDir ? resolve(process.cwd(), dataDir) : join(process.cwd(), '.toutiao-ops');
+}
+
+/**
+ * 获取账号数据目录。
+ */
+export function getAccountsDir(dataDir) {
+  return join(getDataDir(dataDir), 'accounts');
 }
 
 /**
  * 获取指定账号的数据目录路径。
  */
-export function getAccountDir(account) {
-  return join(getAccountsDir(), account || DEFAULT_ACCOUNT);
+export function getAccountDir(account, dataDir) {
+  return join(getAccountsDir(dataDir), account || DEFAULT_ACCOUNT);
 }
 
 /**
  * 获取指定账号的浏览器数据目录。
  */
-export function getBrowserDataDir(account) {
-  return join(getAccountDir(account), 'browser-data');
+export function getBrowserDataDir(account, dataDir) {
+  return join(getAccountDir(account, dataDir), 'browser-data');
 }
 
 /**
  * 获取指定账号的截图目录。
  */
-export function getScreenshotDir(account) {
-  return join(getAccountDir(account), 'screenshots');
+export function getScreenshotDir(account, dataDir) {
+  return join(getAccountDir(account, dataDir), 'screenshots');
 }
 
 /**
@@ -51,11 +57,12 @@ export function getScreenshotDir(account) {
  *
  * @param {object} opts
  * @param {string} [opts.account="default"]
+ * @param {string} [opts.dataDir] 数据根目录，默认当前工作目录下的 .toutiao-ops
  * @param {boolean} [opts.headless=false]
  * @returns {{ context: BrowserContext, page: Page }}
  */
 export async function launchBrowser(opts = {}) {
-  const userDataDir = getBrowserDataDir(opts.account);
+  const userDataDir = getBrowserDataDir(opts.account, opts.dataDir);
   mkdirSync(userDataDir, { recursive: true });
 
   const headless = Boolean(opts.headless);

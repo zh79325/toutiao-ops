@@ -598,7 +598,7 @@ function isImageBlock(block) {
 
 async function takeDebugScreenshot(page, opts, name) {
   try {
-    const dir = getScreenshotDir(opts?.account);
+    const dir = getScreenshotDir(opts?.account, opts?.dataDir);
     mkdirSync(dir, { recursive: true });
     const path = `${dir}/${name}_${Date.now()}.png`;
     await page.screenshot({ path, fullPage: true });

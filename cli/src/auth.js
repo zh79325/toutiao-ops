@@ -1,11 +1,10 @@
-import { launchBrowser, closeBrowser, sleep, waitForStable, getAccountsDir, getAccountDir, getScreenshotDir, getBrowserDataDir } from './browser.js';
+import { launchBrowser, closeBrowser, sleep, waitForStable, getAccountsDir, getAccountDir, getScreenshotDir } from './browser.js';
 import { join } from 'path';
 import { mkdirSync, rmSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'fs';
 
 const MP_HOME = 'https://mp.toutiao.com/';
 const LOGIN_PATH = '/auth/page/login';
 const DASHBOARD_PATH = '/profile_v4';
-const ACCOUNTS_BASE = getAccountsDir();
 
 /**
  * 导航到头条号首页并等待所有重定向完成。
@@ -90,7 +89,7 @@ export async function checkHealth(opts = {}) {
  */
 export async function doLogin(opts = {}) {
   const { context, page } = await launchBrowser({ ...opts, headless: false });
-  const screenshotDir = getScreenshotDir(opts.account);
+  const screenshotDir = getScreenshotDir(opts.account, opts.dataDir);
   try {
     await navigateAndSettle(page);
     const url = page.url();
@@ -161,7 +160,7 @@ export async function doLogin(opts = {}) {
     const userInfo = await extractUserInfo(page);
 
     // 保存账号元信息
-    saveAccountMeta(opts.account, userInfo);
+    saveAccountMeta(opts.account, userInfo, opts.dataDir);
 
     return {
       logged_in: true,
@@ -178,7 +177,7 @@ export async function doLogin(opts = {}) {
  * 清除指定账号的浏览器缓存和会话数据。
  */
 export async function doLogout(opts = {}) {
-  const accountDir = getAccountDir(opts.account);
+  const accountDir = getAccountDir(opts.account, opts.dataDir);
   const cleared = [];
 
   if (existsSync(accountDir)) {
@@ -197,24 +196,25 @@ export async function doLogout(opts = {}) {
 /**
  * 列出所有已保存的账号及其状态。
  */
-export async function listAccounts() {
-  if (!existsSync(ACCOUNTS_BASE)) {
+export async function listAccounts(opts = {}) {
+  const accountsBase = getAccountsDir(opts.dataDir);
+  if (!existsSync(accountsBase)) {
     return { accounts: [], count: 0 };
   }
 
-  const dirs = readdirSync(ACCOUNTS_BASE, { withFileTypes: true })
+  const dirs = readdirSync(accountsBase, { withFileTypes: true })
     .filter(d => d.isDirectory())
     .map(d => d.name);
 
   const accounts = dirs.map(name => {
-    const metaPath = join(ACCOUNTS_BASE, name, 'meta.json');
+    const metaPath = join(accountsBase, name, 'meta.json');
     let meta = {};
     if (existsSync(metaPath)) {
       try {
         meta = JSON.parse(readFileSync(metaPath, 'utf-8'));
       } catch {}
     }
-    const hasBrowserData = existsSync(join(ACCOUNTS_BASE, name, 'browser-data'));
+    const hasBrowserData = existsSync(join(accountsBase, name, 'browser-data'));
     return {
       account: name,
       has_session: hasBrowserData,
@@ -227,9 +227,9 @@ export async function listAccounts() {
 
 // ── 内部工具函数 ──
 
-function saveAccountMeta(account, userInfo) {
+function saveAccountMeta(account, userInfo, dataDir) {
   try {
-    const dir = getAccountDir(account);
+    const dir = getAccountDir(account, dataDir);
     mkdirSync(dir, { recursive: true });
     const metaPath = join(dir, 'meta.json');
     const meta = {

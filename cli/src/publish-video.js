@@ -129,7 +129,7 @@ export async function publishVideo(opts) {
     // 调试截图：发布前状态
     const { getScreenshotDir } = await import('./browser.js');
     const { mkdirSync } = await import('fs');
-    const debugDir = getScreenshotDir(opts.account);
+    const debugDir = getScreenshotDir(opts.account, opts.dataDir);
     mkdirSync(debugDir, { recursive: true });
     const beforePath = `${debugDir}/video-before-publish-${Date.now()}.png`;
     await page.screenshot({ path: beforePath, fullPage: true });

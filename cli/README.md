@@ -64,7 +64,7 @@ npx toutiao-ops --account work publish article --title "工作日报" --content 
 npx toutiao-ops auth list
 ```
 
-账号数据存储在命令执行目录的 `.toutiao-ops/accounts/<name>/` 下。固定在同一目录执行命令，即可复用或同步账号数据。
+账号数据默认存储在命令执行目录的 `.toutiao-ops/accounts/<name>/` 下。也可通过全局参数 `--data-dir <path>` 明确指定数据根目录，以便从任意工作目录复用同一浏览器会话。
 
 ## 命令参考
 
@@ -163,6 +163,7 @@ toutiao-ops inspiration --type hotspot           # 热点推荐
 | 选项 | 说明 |
 |------|------|
 | `--account <name>` | 指定操作账号（默认 `default`），置于子命令之前 |
+| `--data-dir <path>` | 指定浏览器会话和账号数据根目录（默认 `<当前工作目录>/.toutiao-ops`），置于子命令之前 |
 | `--headless` | 无头模式运行（不弹出浏览器窗口） |
 | `--draft` | 发布类命令：存为草稿而非发布 |
 
@@ -213,6 +214,13 @@ toutiao-ops inspiration --type hotspot           # 热点推荐
 - 主动关闭弹窗和权限请求
 
 ## 数据目录
+
+```bash
+# 从任意工作目录复用固定的浏览器会话
+toutiao-ops --data-dir /path/to/.toutiao-ops health check --headless
+```
+
+未指定 `--data-dir` 时使用以下默认目录：
 
 ```
 <当前工作目录>/.toutiao-ops/

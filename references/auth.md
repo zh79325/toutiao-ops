@@ -2,7 +2,7 @@
 
 ## 概述
 
-头条号登录通过浏览器持久化上下文实现，支持多账号管理。每个账号的会话独立保存在命令执行目录的 `.toutiao-ops/accounts/<账号名>/` 下，互不影响，可随工作目录复制或同步。
+头条号登录通过浏览器持久化上下文实现，支持多账号管理。每个账号的会话默认保存在命令执行目录的 `.toutiao-ops/accounts/<账号名>/` 下；可通过全局参数 `--data-dir <path>` 指定数据根目录，各账号互不影响。
 
 ## 多账号
 
@@ -15,7 +15,12 @@ toutiao-ops auth check
 # 操作指定账号
 toutiao-ops --account work auth check
 toutiao-ops --account personal auth login
+
+# 从任意工作目录复用指定的数据目录
+toutiao-ops --data-dir /path/to/.toutiao-ops --account work health check --headless
 ```
+
+`--data-dir` 支持绝对路径和相对路径；省略时使用 `<当前工作目录>/.toutiao-ops`。
 
 数据目录结构：
 
