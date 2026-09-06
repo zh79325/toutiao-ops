@@ -169,6 +169,7 @@ npx toutiao-ops auth list
 
 | 命令 | 说明 |
 |------|------|
+| `health check` | 健康检查（验证账号是否已登录） |
 | `auth check` | 检测登录状态 |
 | `auth login` | 扫码登录 |
 | `auth logout` | 退出登录 |

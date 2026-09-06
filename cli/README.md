@@ -68,6 +68,15 @@ npx toutiao-ops auth list
 
 ## 命令参考
 
+### 健康检查
+
+```bash
+toutiao-ops health check                # 验证默认账号是否已登录
+toutiao-ops --account work health check --headless
+```
+
+返回 `healthy`、`status` 和 `logged_in` 字段；未登录时 `healthy` 为 `false`。
+
 ### 账号管理
 
 ```bash

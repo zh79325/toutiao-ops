@@ -73,6 +73,19 @@ export async function checkLogin(opts = {}) {
 }
 
 /**
+ * 检查指定账号的健康状态。
+ * 当前以账号登录状态作为健康标准。
+ */
+export async function checkHealth(opts = {}) {
+  const authStatus = await checkLogin(opts);
+  return {
+    healthy: authStatus.logged_in === true,
+    status: authStatus.logged_in ? 'ok' : 'unhealthy',
+    ...authStatus,
+  };
+}
+
+/**
  * 扫码登录流程。
  */
 export async function doLogin(opts = {}) {

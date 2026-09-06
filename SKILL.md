@@ -40,7 +40,7 @@ toutiao-ops auth list
 
 ## 执行规则
 
-- 任何操作前先执行 `toutiao-ops auth check` 确认登录状态
+- 任何操作前先执行 `toutiao-ops health check --headless` 确认账号健康且已登录
 - 如果未登录，先执行 `toutiao-ops auth login`，将输出的二维码截图展示给用户扫码
 - 发布类操作使用浏览器自动化（模拟真人），数据类操作使用浏览器内 API
 - **文章标题必须控制在 2~30 个字以内**，超出会被自动截断。生成标题时务必精炼，确保不超过 30 字
@@ -66,6 +66,7 @@ toutiao-ops auth list
 
 | 命令 | 说明 |
 |------|------|
+| `toutiao-ops health check` | 健康检查（验证账号是否已登录） |
 | `toutiao-ops auth check` | 检测登录状态 |
 | `toutiao-ops auth login` | 扫码登录（输出二维码截图路径，需展示给用户） |
 | `toutiao-ops auth logout` | 清除指定账号的登录缓存 |

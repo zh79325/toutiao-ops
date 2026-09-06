@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { checkLogin, doLogin, doLogout, listAccounts } from './src/auth.js';
+import { checkHealth, checkLogin, doLogin, doLogout, listAccounts } from './src/auth.js';
 import { publishArticle } from './src/publish-article.js';
 import { publishVideo } from './src/publish-video.js';
 import { publishWeitoutiao } from './src/publish-weitoutiao.js';
@@ -49,6 +49,17 @@ auth
   .description('列出所有已保存的账号')
   .action(async () => {
     await run(listAccounts, {});
+  });
+
+// ── health ──
+const health = program.command('health');
+
+health
+  .command('check')
+  .description('检查账号登录健康状态')
+  .option('--headless', '无头模式运行')
+  .action(async (opts) => {
+    await run(checkHealth, opts);
   });
 
 // ── publish ──

@@ -34,6 +34,38 @@ toutiao-ops --account personal auth login
 
 ## 命令
 
+### 健康检查
+
+```bash
+toutiao-ops [--account <name>] health check [--headless]
+```
+
+健康检查会访问头条号后台，并以指定账号的实际登录状态作为健康标准。
+
+输出示例（健康）：
+
+```json
+{
+  "healthy": true,
+  "status": "ok",
+  "logged_in": true,
+  "account": "default",
+  "username": "番茄3580433091797615"
+}
+```
+
+输出示例（未登录）：
+
+```json
+{
+  "healthy": false,
+  "status": "unhealthy",
+  "logged_in": false,
+  "account": "default",
+  "message": "未登录，请执行 auth login 扫码登录"
+}
+```
+
 ### 检测登录状态
 
 ```bash
@@ -142,7 +174,7 @@ toutiao-ops auth list
 
 ## 注意事项
 
-- 任何其他操作前，都应先调用 `auth check` 确认登录状态
+- 任何其他操作前，都应先调用 `health check --headless` 确认账号健康且已登录
 - 如果未登录，执行 `auth login` 并将二维码截图展示给用户
 - 切换账号：直接用 `--account <新账号名>` 即可，无需先 logout
 - 彻底删除某账号：`--account <name> auth logout`
